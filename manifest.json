@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "SizeShop",
+  "version": "1.0.0",
+  "description": "Web extension to help measure your clothing sizes while online shopping",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["dist/content.js"],
+      "css": ["dist/content.css"]
+    }
+  ],
+  "action": {
+    "default_popup": "dist/popup.html",
+    "default_title": "SizeShop"
+  },
+  "options_page": "dist/options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["dist/sidebar.html"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}
+
