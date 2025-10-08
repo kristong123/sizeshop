@@ -1,5 +1,5 @@
 # SizeShop
-
+[WIP]
 A web extension that helps users visualize how clothing will fit based on their measurements while online shopping.
 
 ## Overview
