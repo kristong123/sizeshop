@@ -127,35 +127,87 @@ export function detectMeasurementsFromTables(doc: Document): DetectedMeasurement
   
   tables.forEach(table => {
     const rows = Array.from(table.querySelectorAll('tr'))
+    if (rows.length === 0) return
     
-    rows.forEach(row => {
+    // Find header row (usually first row with th elements, or first row)
+    let headerRow = rows.find(row => row.querySelector('th'))
+    if (!headerRow) headerRow = rows[0]
+    
+    const headerCells = Array.from(headerRow.querySelectorAll('th, td'))
+    const columnTypes: (DetectedMeasurement['type'] | null)[] = []
+    
+    // Map each column header to a measurement type
+    headerCells.forEach(cell => {
+      const headerText = cell.textContent?.toLowerCase().trim() || ''
+      const type = inferMeasurementType(headerText)
+      columnTypes.push(type !== 'unknown' ? type : null)
+    })
+    
+    // Check if this table has any measurement columns
+    const hasMeasurementColumns = columnTypes.some(type => type !== null)
+    if (!hasMeasurementColumns) {
+      // Try label-value pattern for non-standard tables
+      rows.forEach(row => {
+        const cells = Array.from(row.querySelectorAll('td, th'))
+        
+        for (let i = 0; i < cells.length - 1; i++) {
+          const labelText = cells[i].textContent?.toLowerCase().trim() || ''
+          const valueText = cells[i + 1].textContent?.trim() || ''
+          
+          const type = inferMeasurementType(labelText)
+          if (!type || type === 'unknown') continue
+          
+          const match = valueText.match(/(\d+(?:\.\d+)?)\s*(cm|inch|in|")?/)
+          if (!match) continue
+          
+          const value = parseFloat(match[1])
+          const unit = normalizeUnit(match[2] || 'cm')
+          
+          if (!isRealisticMeasurement(value, unit, type)) continue
+          
+          measurements.push({
+            text: `${labelText}: ${valueText}`,
+            value,
+            unit,
+            type,
+            confidence: 0.8
+          })
+        }
+      })
+      return
+    }
+    
+    // Process data rows (skip header row)
+    const dataRows = rows.slice(rows.indexOf(headerRow) + 1)
+    
+    dataRows.forEach((row) => {
       const cells = Array.from(row.querySelectorAll('td, th'))
       
-      // Look for label cell + value cell pattern
-      for (let i = 0; i < cells.length - 1; i++) {
-        const labelText = cells[i].textContent?.toLowerCase().trim() || ''
-        const valueText = cells[i + 1].textContent?.trim() || ''
+      // Extract measurements from each column that has a measurement type
+      cells.forEach((cell, colIndex) => {
+        const type = columnTypes[colIndex]
+        if (!type) return
         
-        const type = inferMeasurementType(labelText)
-        if (!type || type === 'unknown') continue
+        const valueText = cell.textContent?.trim() || ''
         
         // Try to extract number and unit
         const match = valueText.match(/(\d+(?:\.\d+)?)\s*(cm|inch|in|")?/)
-        if (!match) continue
+        if (!match) return
         
         const value = parseFloat(match[1])
         const unit = normalizeUnit(match[2] || 'cm')
         
-        if (!isRealisticMeasurement(value, unit, type)) continue
+        if (!isRealisticMeasurement(value, unit, type)) return
         
         measurements.push({
-          text: `${labelText}: ${valueText}`,
+          text: `${headerCells[colIndex]?.textContent?.trim()}: ${valueText}`,
           value,
           unit,
           type,
-          confidence: 0.8
+          confidence: 0.9,
+          size: cells[0]?.textContent?.trim() // Store the size label (S, M, L, etc.)
         })
-      }
+      })
     })
   })
   
@@ -199,7 +251,6 @@ export function detectFromWebsite(doc: Document, url: string): DetectedMeasureme
  * Main detection function - tries multiple strategies
  */
 export function detectAllMeasurements(doc: Document, url: string): DetectedMeasurement[] {
-  const measurements: DetectedMeasurement[] = []
   const seen = new Map<string, DetectedMeasurement>()
   
   // Strategy 1: Website-specific detection

@@ -52,12 +52,56 @@ function highlightMeasurements(): void {
   }
 }
 
+// Helper function to group measurements by size
+function groupMeasurementsBySize(measurements: any[]) {
+  const measurementsBySize: { [size: string]: any[] } = {}
+  const availableSizes: string[] = []
+  
+  measurements.forEach(m => {
+    if (m.size) {
+      if (!measurementsBySize[m.size]) {
+        measurementsBySize[m.size] = []
+        availableSizes.push(m.size)
+      }
+      measurementsBySize[m.size].push(m)
+    }
+  })
+  
+  return { measurementsBySize, availableSizes }
+}
+
 // Listen for messages from popup/background
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
     case 'SCAN_PAGE':
-      scanForMeasurements()
-      sendResponse({ success: true })
+      try {
+        const measurements = detectAllMeasurements(document, window.location.href)
+        console.log('SizeShop: Manual scan found', measurements.length, 'measurements')
+        
+        if (measurements.length > 0) {
+          const { measurementsBySize, availableSizes } = groupMeasurementsBySize(measurements)
+          
+          // Send measurements to background script
+          chrome.runtime.sendMessage({
+            type: 'MEASUREMENTS_DETECTED',
+            measurements: measurements,
+            measurementsBySize: measurementsBySize,
+            availableSizes: availableSizes,
+            url: window.location.href
+          })
+          sendResponse({ 
+            success: true, 
+            count: measurements.length,
+            measurementsBySize: measurementsBySize,
+            availableSizes: availableSizes
+          })
+        } else {
+          sendResponse({ success: false, count: 0 })
+        }
+      } catch (error) {
+        console.error('SizeShop: Error during manual scan', error)
+        sendResponse({ success: false, error: String(error) })
+      }
       break
     case 'HIGHLIGHT_MEASUREMENTS':
       highlightMeasurements()
@@ -66,6 +110,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     default:
       sendResponse({ success: false })
   }
+  return true // Keep message channel open for async response
 })
 
 // Auto-scan on page load (can be disabled in settings)

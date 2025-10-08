@@ -36,6 +36,7 @@ export interface DetectedMeasurement {
   unit: 'cm' | 'inch'
   type: 'chest' | 'waist' | 'length' | 'sleeve' | 'inseam' | 'shoulder' | 'unknown'
   confidence: number // 0-1
+  size?: string // Size label (e.g., "M", "L", "XL")
 }
 
 export interface ExtensionSettings {
@@ -47,6 +48,8 @@ export interface ExtensionSettings {
 
 export interface ScanResult {
   measurements: DetectedMeasurement[]
+  measurementsBySize: { [size: string]: DetectedMeasurement[] }
+  availableSizes: string[]
   url: string
   timestamp: number
   clothingType?: string

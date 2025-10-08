@@ -28,6 +28,8 @@ function handleMeasurementsDetected(message: any, sender: chrome.runtime.Message
   chrome.storage.local.set({
     lastMeasurements: {
       measurements: message.measurements,
+      measurementsBySize: message.measurementsBySize || {},
+      availableSizes: message.availableSizes || [],
       url: message.url,
       timestamp: Date.now()
     }
@@ -37,6 +39,8 @@ function handleMeasurementsDetected(message: any, sender: chrome.runtime.Message
   chrome.runtime.sendMessage({
     type: 'NEW_MEASUREMENTS',
     measurements: message.measurements,
+    measurementsBySize: message.measurementsBySize,
+    availableSizes: message.availableSizes,
     url: message.url
   }).catch(() => {
     // Popup might not be open, ignore error
